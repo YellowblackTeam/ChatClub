@@ -136,26 +136,34 @@ canvas{
 </div>
 
 <script>
-// =======================
+// ==========================
 // SUPABASE
-// =======================
+// ==========================
 
-const SUPABASE_URL = "https://hlkainqwjptgflzqsfuf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_rciw1jgA4brYyLJqknIqEQ_1WU_saEf";
+const SUPABASE_URL =
+"https://hlkainqwjptgflzqsfuf.supabase.co";
 
-const sb = window.supabase.createClient(
+const SUPABASE_KEY =
+"sb_publishable_rciw1jgA4brYyLJqknIqEQ_1WU_saEf";
+
+const sb =
+window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
 );
 
-// =======================
+// ==========================
 // CANVAS
-// =======================
+// ==========================
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas =
+document.getElementById("game");
+
+const ctx =
+canvas.getContext("2d");
 
 function resize(){
+
     canvas.width = innerWidth;
     canvas.height = innerHeight;
 }
@@ -163,9 +171,9 @@ resize();
 
 addEventListener("resize", resize);
 
-// =======================
+// ==========================
 // PLAYER
-// =======================
+// ==========================
 
 let playerName = "Player";
 
@@ -199,31 +207,39 @@ const player = {
 
 let onlinePlayers = {};
 
-// =======================
+// ==========================
 // START
-// =======================
+// ==========================
 
-document.getElementById("startBtn").onclick =
-async ()=>{
+document
+.getElementById("startBtn")
+.onclick = async ()=>{
 
     const nameInput =
-        document.getElementById("nameInput");
+    document.getElementById("nameInput");
 
     const colorInput =
-        document.getElementById("colorInput");
+    document.getElementById("colorInput");
 
     if(nameInput.value.trim() !== ""){
-        playerName = nameInput.value.trim();
+        playerName =
+        nameInput.value.trim();
     }
 
-    player.color = colorInput.value;
+    player.color =
+    colorInput.value;
 
-    document.getElementById("namePopup")
+    document
+    .getElementById("namePopup")
     .style.display = "none";
 
     // Fullscreen
-    if(document.documentElement.requestFullscreen){
-        document.documentElement.requestFullscreen();
+    if(document.documentElement
+       .requestFullscreen){
+
+        document
+        .documentElement
+        .requestFullscreen();
     }
 
     // Landscape
@@ -235,35 +251,31 @@ async ()=>{
         .catch(()=>{});
     }
 
-    // Criar player no database
-    await sb
-    .from("players")
-    .upsert({
-        id:player.id,
-        name:playerName,
-        color:player.color,
-        x:player.x,
-        y:player.y,
-        message:""
-    });
+    // Salva player
+    await syncPlayer();
 
-    startRealtime();
-
+    // Loop database
     setInterval(syncPlayer, 120);
 
     setInterval(loadPlayers, 120);
 };
 
-// =======================
+// ==========================
 // CLICK
-// =======================
+// ==========================
 
-canvas.addEventListener("click",(e)=>{
+canvas.addEventListener(
+"click",
+(e)=>{
 
-    const rect = canvas.getBoundingClientRect();
+    const rect =
+    canvas.getBoundingClientRect();
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseX =
+    e.clientX - rect.left;
+
+    const mouseY =
+    e.clientY - rect.top;
 
     // Selecionar
     if(
@@ -272,7 +284,9 @@ canvas.addEventListener("click",(e)=>{
         mouseY >= player.y &&
         mouseY <= player.y + player.size
     ){
+
         player.selected = true;
+
         return;
     }
 
@@ -280,26 +294,30 @@ canvas.addEventListener("click",(e)=>{
     if(player.selected){
 
         player.targetX =
-            mouseX - player.size/2;
+        mouseX - player.size/2;
 
         player.targetY =
-            mouseY - player.size/2;
-
-        player.moving = true;
+        mouseY - player.size/2;
 
         player.selected = false;
+
+        player.moving = true;
     }
 });
 
-// =======================
+// ==========================
 // CHAT
-// =======================
+// ==========================
 
-document.getElementById("sendBtn").onclick =
-sendMessage;
+document
+.getElementById("sendBtn")
+.onclick = sendMessage;
 
-document.getElementById("chatInput")
-.addEventListener("keydown",(e)=>{
+document
+.getElementById("chatInput")
+.addEventListener(
+"keydown",
+(e)=>{
 
     if(e.key === "Enter"){
         sendMessage();
@@ -308,54 +326,70 @@ document.getElementById("chatInput")
 
 async function sendMessage(){
 
-    // Anti spam
     if(!player.canTalk){
         return;
     }
 
     const input =
-        document.getElementById("chatInput");
+    document.getElementById(
+        "chatInput"
+    );
 
     if(input.value.trim() === ""){
         return;
     }
 
-    player.bubbleText = input.value;
+    player.bubbleText =
+    input.value;
 
     player.bubbleTimer = 300;
 
     player.canTalk = false;
 
-    await sb
-    .from("players")
-    .update({
-        message:player.bubbleText
-    })
-    .eq("id", player.id);
+    await syncPlayer();
 
     input.value = "";
 }
 
-// =======================
+// ==========================
 // DATABASE
-// =======================
+// ==========================
 
 async function syncPlayer(){
 
     await sb
     .from("players")
     .upsert({
+
         id:player.id,
+
         name:playerName,
+
         color:player.color,
+
         x:player.x,
         y:player.y,
-        message:player.bubbleText
+
+        message:player.bubbleText,
+
+        last_seen:Date.now()
     });
 }
 
 async function loadPlayers(){
 
+    const now = Date.now();
+
+    // Remove offline
+    await sb
+    .from("players")
+    .delete()
+    .lt(
+        "last_seen",
+        now - 5000
+    );
+
+    // Carrega players
     const { data } =
     await sb
     .from("players")
@@ -365,52 +399,37 @@ async function loadPlayers(){
 
         onlinePlayers = {};
 
-        data.forEach(p=>{
+        data.forEach((p)=>{
 
             onlinePlayers[p.id] = p;
         });
     }
 }
 
-function startRealtime(){
-
-    sb.channel("room1")
-    .on(
-        "postgres_changes",
-        {
-            event:"*",
-            schema:"public",
-            table:"players"
-        },
-        ()=>{
-            loadPlayers();
-        }
-    )
-    .subscribe();
-}
-
-// =======================
+// ==========================
 // UPDATE
-// =======================
+// ==========================
 
 function update(){
 
     const dx =
-        player.targetX - player.x;
+    player.targetX - player.x;
 
     const dy =
-        player.targetY - player.y;
+    player.targetY - player.y;
 
     const distance =
-        Math.sqrt(dx*dx + dy*dy);
+    Math.sqrt(dx*dx + dy*dy);
 
     if(distance > 1){
 
         player.x +=
-            (dx / distance) * player.speed;
+        (dx / distance)
+        * player.speed;
 
         player.y +=
-            (dy / distance) * player.speed;
+        (dy / distance)
+        * player.speed;
 
         player.walkFrame += 0.2;
 
@@ -432,35 +451,37 @@ function update(){
 
             player.canTalk = true;
 
-            // Remove do database
-            sb
-            .from("players")
-            .update({
-                message:""
-            })
-            .eq("id", player.id);
+            syncPlayer();
         }
     }
 }
 
-// =======================
-// DRAW
-// =======================
+// ==========================
+// DRAW PLAYER
+// ==========================
 
-function drawPlayer(p, isLocal=false){
+function drawPlayer(
+p,
+isLocal=false
+){
 
     const size = 60;
 
     let offsetY = 0;
 
+    // Animação andando
     if(isLocal && player.moving){
+
         offsetY =
-            Math.sin(player.walkFrame) * 4;
+        Math.sin(player.walkFrame)
+        * 4;
     }
 
     // Nome
     ctx.fillStyle = "black";
+
     ctx.font = "20px Arial";
+
     ctx.textAlign = "center";
 
     ctx.fillText(
@@ -483,6 +504,7 @@ function drawPlayer(p, isLocal=false){
     if(isLocal && player.selected){
 
         ctx.strokeStyle = "black";
+
         ctx.lineWidth = 4;
 
         ctx.beginPath();
@@ -499,20 +521,27 @@ function drawPlayer(p, isLocal=false){
     }
 
     // Bubble
-    if(p.message && p.message !== ""){
+    if(
+        p.message &&
+        p.message !== ""
+    ){
 
         ctx.font = "18px Arial";
 
         const textWidth =
-            ctx.measureText(p.message).width + 30;
+        ctx.measureText(
+            p.message
+        ).width + 30;
 
         const bubbleX =
-            p.x + size/2 - textWidth/2;
+        p.x + size/2
+        - textWidth/2;
 
         const bubbleY =
-            p.y - 80;
+        p.y - 80;
 
         ctx.fillStyle = "white";
+
         ctx.strokeStyle = "black";
 
         ctx.lineWidth = 2;
@@ -528,6 +557,7 @@ function drawPlayer(p, isLocal=false){
         );
 
         ctx.fill();
+
         ctx.stroke();
 
         ctx.fillStyle = "black";
@@ -540,6 +570,10 @@ function drawPlayer(p, isLocal=false){
     }
 }
 
+// ==========================
+// DRAW
+// ==========================
+
 function draw(){
 
     ctx.clearRect(
@@ -551,7 +585,8 @@ function draw(){
 
     for(const id in onlinePlayers){
 
-        const p = onlinePlayers[id];
+        const p =
+        onlinePlayers[id];
 
         drawPlayer(
             p,
@@ -560,9 +595,9 @@ function draw(){
     }
 }
 
-// =======================
+// ==========================
 // LOOP
-// =======================
+// ==========================
 
 function loop(){
 
@@ -574,19 +609,6 @@ function loop(){
 }
 
 loop();
-
-// =======================
-// SAIR DO JOGO
-// =======================
-
-window.addEventListener("beforeunload",
-async ()=>{
-
-    await sb
-    .from("players")
-    .delete()
-    .eq("id", player.id);
-});
 </script>
 
 </body>
