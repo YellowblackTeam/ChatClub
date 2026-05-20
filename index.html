@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChatClub</title>
+
+<style>
+    html, body {
+        margin: 0;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        background: white;
+        font-family: Arial, sans-serif;
+    }
+
+    canvas {
+        display: block;
+        background: white;
+    }
+
+    #chatBox {
+        position: fixed;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 5px;
+    }
+
+    #chatInput {
+        width: 220px;
+        height: 35px;
+        border: 2px solid black;
+        border-radius: 8px;
+        padding-left: 10px;
+        font-size: 16px;
+    }
+
+    #sendBtn {
+        height: 40px;
+        border: none;
+        border-radius: 8px;
+        padding: 0 15px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #2196f3;
+        color: white;
+    }
+
+    #namePopup {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #popupContent {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        width: 300px;
+    }
+
+    #nameInput {
+        width: 90%;
+        height: 35px;
+        font-size: 16px;
+        margin-top: 10px;
+        padding-left: 10px;
+    }
+
+    #startBtn {
+        margin-top: 10px;
+        width: 100%;
+        height: 40px;
+        font-size: 16px;
+        border: none;
+        border-radius: 10px;
+        background: #2196f3;
+        color: white;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<div id="namePopup">
+    <div id="popupContent">
+        <h2>ChatClub</h2>
+        <p>Digite seu nome</p>
+
+        <input id="nameInput" maxlength="15" placeholder="Seu nome">
+
+        <button id="startBtn">Entrar</button>
+    </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="chatBox">
+    <input id="chatInput" placeholder="Mensagem...">
+    <button id="sendBtn">Enviar</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+
+window.addEventListener("resize", resize);
+
+let playerName = "Player";
+
+const player = {
+    x: 300,
+    y: 300,
+    size: 60,
+    color: "blue",
+    selected: false,
+    targetX: 300,
+    targetY: 300,
+    bubbleText: "",
+    bubbleTimer: 0
+};
+
+document.getElementById("startBtn").onclick = async () => {
+    const input = document.getElementById("nameInput");
+
+    if(input.value.trim() !== "") {
+        playerName = input.value.trim();
+    }
+
+    document.getElementById("namePopup").style.display = "none";
+
+    // Fullscreen
+    if(document.documentElement.requestFullscreen){
+        document.documentElement.requestFullscreen();
+    }
+
+    // Landscape
+    if(screen.orientation && screen.orientation.lock){
+        screen.orientation.lock("landscape").catch(()=>{});
+    }
+};
+
+canvas.addEventListener("click", (e) => {
+
+    const rect = canvas.getBoundingClientRect();
+
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Clique no player
+    if(
+        mouseX >= player.x &&
+        mouseX <= player.x + player.size &&
+        mouseY >= player.y &&
+        mouseY <= player.y + player.size
+    ){
+        player.selected = true;
+        return;
+    }
+
+    // Movimento
+    if(player.selected){
+        player.targetX = mouseX - player.size / 2;
+        player.targetY = mouseY - player.size / 2;
+        player.selected = false;
+    }
+});
+
+document.getElementById("sendBtn").onclick = sendMessage;
+
+document.getElementById("chatInput").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter"){
+        sendMessage();
+    }
+});
+
+function sendMessage(){
+    const input = document.getElementById("chatInput");
+
+    if(input.value.trim() !== ""){
+        player.bubbleText = input.value;
+        player.bubbleTimer = 300;
+
+        input.value = "";
+    }
+}
+
+function update(){
+
+    // Movimento suave
+    player.x += (player.targetX - player.x) * 0.08;
+    player.y += (player.targetY - player.y) * 0.08;
+
+    if(player.bubbleTimer > 0){
+        player.bubbleTimer--;
+    }
+}
+
+function draw(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Nome
+    ctx.fillStyle = "black";
+    ctx.font = "20px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(playerName, player.x + player.size/2, player.y - 20);
+
+    // Cubo
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    // Seleção
+    if(player.selected){
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 4;
+
+        ctx.beginPath();
+        ctx.arc(
+            player.x + player.size/2,
+            player.y + player.size/2,
+            player.size,
+            0,
+            Math.PI * 2
+        );
+        ctx.stroke();
+    }
+
+    // Bubble
+    if(player.bubbleTimer > 0){
+
+        const textWidth = ctx.measureText(player.bubbleText).width + 30;
+
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.roundRect(
+            player.x - (textWidth/2) + player.size/2,
+            player.y - 80,
+            textWidth,
+            40,
+            10
+        );
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "black";
+        ctx.fillText(
+            player.bubbleText,
+            player.x + player.size/2,
+            player.y - 53
+        );
+    }
+}
+
+function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+  </html>
