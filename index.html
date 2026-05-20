@@ -14,7 +14,7 @@ html, body{
     height:100%;
     overflow:hidden;
     background:white;
-    font-family:Arial, sans-serif;
+    font-family:Arial,sans-serif;
 }
 
 canvas{
@@ -28,7 +28,7 @@ canvas{
     bottom:10px;
     display:flex;
     gap:5px;
-    z-index:5;
+    z-index:10;
 }
 
 #chatInput{
@@ -58,7 +58,7 @@ canvas{
     display:flex;
     justify-content:center;
     align-items:center;
-    z-index:10;
+    z-index:20;
 }
 
 #popupContent{
@@ -136,9 +136,9 @@ canvas{
 </div>
 
 <script>
-// ==========================
+// =====================================
 // SUPABASE
-// ==========================
+// =====================================
 
 const SUPABASE_URL =
 "https://hlkainqwjptgflzqsfuf.supabase.co";
@@ -152,9 +152,9 @@ window.supabase.createClient(
     SUPABASE_KEY
 );
 
-// ==========================
+// =====================================
 // CANVAS
-// ==========================
+// =====================================
 
 const canvas =
 document.getElementById("game");
@@ -171,9 +171,9 @@ resize();
 
 addEventListener("resize", resize);
 
-// ==========================
+// =====================================
 // PLAYER
-// ==========================
+// =====================================
 
 let playerName = "Player";
 
@@ -207,9 +207,9 @@ const player = {
 
 let onlinePlayers = {};
 
-// ==========================
+// =====================================
 // START
-// ==========================
+// =====================================
 
 document
 .getElementById("startBtn")
@@ -233,7 +233,7 @@ document
     .getElementById("namePopup")
     .style.display = "none";
 
-    // Fullscreen
+    // fullscreen
     if(document.documentElement
        .requestFullscreen){
 
@@ -242,7 +242,7 @@ document
         .requestFullscreen();
     }
 
-    // Landscape
+    // landscape
     if(screen.orientation &&
        screen.orientation.lock){
 
@@ -251,18 +251,18 @@ document
         .catch(()=>{});
     }
 
-    // Salva player
     await syncPlayer();
 
-    // Loop database
+    // atualiza database
     setInterval(syncPlayer, 120);
 
+    // pega players online
     setInterval(loadPlayers, 120);
 };
 
-// ==========================
+// =====================================
 // CLICK
-// ==========================
+// =====================================
 
 canvas.addEventListener(
 "click",
@@ -277,7 +277,7 @@ canvas.addEventListener(
     const mouseY =
     e.clientY - rect.top;
 
-    // Selecionar
+    // selecionar player
     if(
         mouseX >= player.x &&
         mouseX <= player.x + player.size &&
@@ -290,7 +290,7 @@ canvas.addEventListener(
         return;
     }
 
-    // Andar
+    // mover
     if(player.selected){
 
         player.targetX =
@@ -305,9 +305,9 @@ canvas.addEventListener(
     }
 });
 
-// ==========================
+// =====================================
 // CHAT
-// ==========================
+// =====================================
 
 document
 .getElementById("sendBtn")
@@ -326,6 +326,7 @@ document
 
 async function sendMessage(){
 
+    // anti spam
     if(!player.canTalk){
         return;
     }
@@ -351,9 +352,9 @@ async function sendMessage(){
     input.value = "";
 }
 
-// ==========================
+// =====================================
 // DATABASE
-// ==========================
+// =====================================
 
 async function syncPlayer(){
 
@@ -361,18 +362,18 @@ async function syncPlayer(){
     .from("players")
     .upsert({
 
-        id:player.id,
+        id: player.id,
 
-        name:playerName,
+        name: playerName,
 
-        color:player.color,
+        color: player.color,
 
-        x:player.x,
-        y:player.y,
+        x: player.x,
+        y: player.y,
 
-        message:player.bubbleText,
+        message: player.bubbleText,
 
-        last_seen:Date.now()
+        last_seen: Date.now()
     });
 }
 
@@ -380,35 +381,31 @@ async function loadPlayers(){
 
     const now = Date.now();
 
-    // Remove offline
-    await sb
-    .from("players")
-    .delete()
-    .lt(
-        "last_seen",
-        now - 5000
-    );
-
-    // Carrega players
-    const { data } =
+    const { data, error } =
     await sb
     .from("players")
     .select("*");
 
-    if(data){
+    if(error){
+        console.log(error);
+        return;
+    }
 
-        onlinePlayers = {};
+    onlinePlayers = {};
 
-        data.forEach((p)=>{
+    data.forEach((p)=>{
+
+        // REMOVE FANTASMAS
+        if(now - p.last_seen < 5000){
 
             onlinePlayers[p.id] = p;
-        });
-    }
+        }
+    });
 }
 
-// ==========================
+// =====================================
 // UPDATE
-// ==========================
+// =====================================
 
 function update(){
 
@@ -421,6 +418,7 @@ function update(){
     const distance =
     Math.sqrt(dx*dx + dy*dy);
 
+    // andar
     if(distance > 1){
 
         player.x +=
@@ -440,7 +438,7 @@ function update(){
         player.moving = false;
     }
 
-    // Bubble timer
+    // timer bubble
     if(player.bubbleTimer > 0){
 
         player.bubbleTimer--;
@@ -456,9 +454,9 @@ function update(){
     }
 }
 
-// ==========================
+// =====================================
 // DRAW PLAYER
-// ==========================
+// =====================================
 
 function drawPlayer(
 p,
@@ -469,7 +467,7 @@ isLocal=false
 
     let offsetY = 0;
 
-    // Animação andando
+    // animação andando
     if(isLocal && player.moving){
 
         offsetY =
@@ -477,7 +475,7 @@ isLocal=false
         * 4;
     }
 
-    // Nome
+    // nome
     ctx.fillStyle = "black";
 
     ctx.font = "20px Arial";
@@ -490,7 +488,7 @@ isLocal=false
         p.y - 20
     );
 
-    // Cubo
+    // cubo
     ctx.fillStyle = p.color;
 
     ctx.fillRect(
@@ -500,7 +498,7 @@ isLocal=false
         size
     );
 
-    // Seleção
+    // seleção
     if(isLocal && player.selected){
 
         ctx.strokeStyle = "black";
@@ -520,7 +518,7 @@ isLocal=false
         ctx.stroke();
     }
 
-    // Bubble
+    // bubble
     if(
         p.message &&
         p.message !== ""
@@ -570,9 +568,9 @@ isLocal=false
     }
 }
 
-// ==========================
+// =====================================
 // DRAW
-// ==========================
+// =====================================
 
 function draw(){
 
@@ -595,9 +593,9 @@ function draw(){
     }
 }
 
-// ==========================
+// =====================================
 // LOOP
-// ==========================
+// =====================================
 
 function loop(){
 
