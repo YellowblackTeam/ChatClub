@@ -233,24 +233,6 @@ document
     .getElementById("namePopup")
     .style.display = "none";
 
-    // fullscreen
-    if(document.documentElement
-       .requestFullscreen){
-
-        document
-        .documentElement
-        .requestFullscreen();
-    }
-
-    // landscape
-    if(screen.orientation &&
-       screen.orientation.lock){
-
-        screen.orientation
-        .lock("landscape")
-        .catch(()=>{});
-    }
-
     await syncPlayer();
 
     // atualiza database
@@ -395,7 +377,7 @@ async function loadPlayers(){
 
     data.forEach((p)=>{
 
-        // REMOVE FANTASMAS
+        // remove fantasmas
         if(now - p.last_seen < 5000){
 
             onlinePlayers[p.id] = p;
