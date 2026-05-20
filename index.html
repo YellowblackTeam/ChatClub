@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ChatClub</title>
+<title>ChatClub Online</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 html, body{
@@ -26,10 +28,11 @@ canvas{
     bottom:10px;
     display:flex;
     gap:5px;
+    z-index:5;
 }
 
 #chatInput{
-    width:230px;
+    width:220px;
     height:40px;
     border-radius:10px;
     border:2px solid black;
@@ -41,9 +44,9 @@ canvas{
     height:45px;
     border:none;
     border-radius:10px;
-    padding:0 15px;
     background:#2196f3;
     color:white;
+    padding:0 15px;
     font-size:16px;
     cursor:pointer;
 }
@@ -55,13 +58,14 @@ canvas{
     display:flex;
     justify-content:center;
     align-items:center;
+    z-index:10;
 }
 
 #popupContent{
     width:320px;
     background:white;
-    border-radius:20px;
     padding:20px;
+    border-radius:20px;
     text-align:center;
 }
 
@@ -132,54 +136,90 @@ canvas{
 </div>
 
 <script>
+// =======================
+// SUPABASE
+// =======================
+
+const SUPABASE_URL = "COLOQUE_SUA_URL";
+const SUPABASE_KEY = "COLOQUE_SUA_KEY";
+
+const sb = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+// =======================
+// CANVAS
+// =======================
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resize(){
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
 }
 resize();
 
-window.addEventListener("resize", resize);
+addEventListener("resize", resize);
+
+// =======================
+// PLAYER
+// =======================
 
 let playerName = "Player";
 
 const player = {
+
+    id: crypto.randomUUID(),
+
     x:300,
     y:300,
-
-    size:60,
-
-    color:"#0000ff",
-
-    selected:false,
 
     targetX:300,
     targetY:300,
 
+    size:60,
+
     speed:4,
+
+    color:"#0000ff",
+
+    selected:false,
 
     moving:false,
 
     bubbleText:"",
     bubbleTimer:0,
 
+    canTalk:true,
+
     walkFrame:0
 };
 
-document.getElementById("startBtn").onclick = async () => {
+let onlinePlayers = {};
 
-    const input = document.getElementById("nameInput");
-    const colorInput = document.getElementById("colorInput");
+// =======================
+// START
+// =======================
 
-    if(input.value.trim() !== ""){
-        playerName = input.value.trim();
+document.getElementById("startBtn").onclick =
+async ()=>{
+
+    const nameInput =
+        document.getElementById("nameInput");
+
+    const colorInput =
+        document.getElementById("colorInput");
+
+    if(nameInput.value.trim() !== ""){
+        playerName = nameInput.value.trim();
     }
 
     player.color = colorInput.value;
 
-    document.getElementById("namePopup").style.display = "none";
+    document.getElementById("namePopup")
+    .style.display = "none";
 
     // Fullscreen
     if(document.documentElement.requestFullscreen){
@@ -187,19 +227,45 @@ document.getElementById("startBtn").onclick = async () => {
     }
 
     // Landscape
-    if(screen.orientation && screen.orientation.lock){
-        screen.orientation.lock("landscape").catch(()=>{});
+    if(screen.orientation &&
+       screen.orientation.lock){
+
+        screen.orientation
+        .lock("landscape")
+        .catch(()=>{});
     }
+
+    // Criar player no database
+    await sb
+    .from("players")
+    .upsert({
+        id:player.id,
+        name:playerName,
+        color:player.color,
+        x:player.x,
+        y:player.y,
+        message:""
+    });
+
+    startRealtime();
+
+    setInterval(syncPlayer, 120);
+
+    setInterval(loadPlayers, 120);
 };
 
-canvas.addEventListener("click", (e)=>{
+// =======================
+// CLICK
+// =======================
+
+canvas.addEventListener("click",(e)=>{
 
     const rect = canvas.getBoundingClientRect();
 
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Selecionar cubo
+    // Selecionar
     if(
         mouseX >= player.x &&
         mouseX <= player.x + player.size &&
@@ -213,8 +279,11 @@ canvas.addEventListener("click", (e)=>{
     // Andar
     if(player.selected){
 
-        player.targetX = mouseX - player.size/2;
-        player.targetY = mouseY - player.size/2;
+        player.targetX =
+            mouseX - player.size/2;
+
+        player.targetY =
+            mouseY - player.size/2;
 
         player.moving = true;
 
@@ -222,54 +291,172 @@ canvas.addEventListener("click", (e)=>{
     }
 });
 
-document.getElementById("sendBtn").onclick = sendMessage;
+// =======================
+// CHAT
+// =======================
 
-document.getElementById("chatInput").addEventListener("keydown", (e)=>{
+document.getElementById("sendBtn").onclick =
+sendMessage;
+
+document.getElementById("chatInput")
+.addEventListener("keydown",(e)=>{
+
     if(e.key === "Enter"){
         sendMessage();
     }
 });
 
-function sendMessage(){
+async function sendMessage(){
 
-    const input = document.getElementById("chatInput");
+    // Anti spam
+    if(!player.canTalk){
+        return;
+    }
 
-    if(input.value.trim() !== ""){
+    const input =
+        document.getElementById("chatInput");
 
-        player.bubbleText = input.value;
+    if(input.value.trim() === ""){
+        return;
+    }
 
-        player.bubbleTimer = 300;
+    player.bubbleText = input.value;
 
-        input.value = "";
+    player.bubbleTimer = 300;
+
+    player.canTalk = false;
+
+    await sb
+    .from("players")
+    .update({
+        message:player.bubbleText
+    })
+    .eq("id", player.id);
+
+    input.value = "";
+}
+
+// =======================
+// DATABASE
+// =======================
+
+async function syncPlayer(){
+
+    await sb
+    .from("players")
+    .upsert({
+        id:player.id,
+        name:playerName,
+        color:player.color,
+        x:player.x,
+        y:player.y,
+        message:player.bubbleText
+    });
+}
+
+async function loadPlayers(){
+
+    const { data } =
+    await sb
+    .from("players")
+    .select("*");
+
+    if(data){
+
+        onlinePlayers = {};
+
+        data.forEach(p=>{
+
+            onlinePlayers[p.id] = p;
+        });
     }
 }
+
+function startRealtime(){
+
+    sb.channel("room1")
+    .on(
+        "postgres_changes",
+        {
+            event:"*",
+            schema:"public",
+            table:"players"
+        },
+        ()=>{
+            loadPlayers();
+        }
+    )
+    .subscribe();
+}
+
+// =======================
+// UPDATE
+// =======================
 
 function update(){
 
-    const dx = player.targetX - player.x;
-    const dy = player.targetY - player.y;
+    const dx =
+        player.targetX - player.x;
 
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const dy =
+        player.targetY - player.y;
+
+    const distance =
+        Math.sqrt(dx*dx + dy*dy);
 
     if(distance > 1){
 
-        player.x += (dx / distance) * player.speed;
-        player.y += (dy / distance) * player.speed;
+        player.x +=
+            (dx / distance) * player.speed;
+
+        player.y +=
+            (dy / distance) * player.speed;
 
         player.walkFrame += 0.2;
 
+        player.moving = true;
+
     }else{
+
         player.moving = false;
     }
 
+    // Bubble timer
     if(player.bubbleTimer > 0){
+
         player.bubbleTimer--;
+
+        if(player.bubbleTimer <= 0){
+
+            player.bubbleText = "";
+
+            player.canTalk = true;
+
+            // Remove do database
+            sb
+            .from("players")
+            .update({
+                message:""
+            })
+            .eq("id", player.id);
+        }
     }
 }
 
-function draw(){
+// =======================
+// DRAW
+// =======================
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+function drawPlayer(p, isLocal=false){
+
+    const size = 60;
+
+    let offsetY = 0;
+
+    if(isLocal && player.moving){
+        offsetY =
+            Math.sin(player.walkFrame) * 4;
+    }
 
     // Nome
     ctx.fillStyle = "black";
@@ -277,30 +464,23 @@ function draw(){
     ctx.textAlign = "center";
 
     ctx.fillText(
-        playerName,
-        player.x + player.size/2,
-        player.y - 20
+        p.name,
+        p.x + size/2,
+        p.y - 20
     );
 
-    // Animação andando
-    let offsetY = 0;
-
-    if(player.moving){
-        offsetY = Math.sin(player.walkFrame) * 4;
-    }
-
     // Cubo
-    ctx.fillStyle = player.color;
+    ctx.fillStyle = p.color;
 
     ctx.fillRect(
-        player.x,
-        player.y + offsetY,
-        player.size,
-        player.size
+        p.x,
+        p.y + offsetY,
+        size,
+        size
     );
 
     // Seleção
-    if(player.selected){
+    if(isLocal && player.selected){
 
         ctx.strokeStyle = "black";
         ctx.lineWidth = 4;
@@ -308,9 +488,9 @@ function draw(){
         ctx.beginPath();
 
         ctx.arc(
-            player.x + player.size/2,
-            player.y + player.size/2,
-            player.size,
+            player.x + size/2,
+            player.y + size/2,
+            size,
             0,
             Math.PI * 2
         );
@@ -319,21 +499,22 @@ function draw(){
     }
 
     // Bubble
-    if(player.bubbleTimer > 0){
+    if(p.message && p.message !== ""){
 
         ctx.font = "18px Arial";
 
         const textWidth =
-            ctx.measureText(player.bubbleText).width + 30;
+            ctx.measureText(p.message).width + 30;
 
         const bubbleX =
-            player.x + player.size/2 - textWidth/2;
+            p.x + size/2 - textWidth/2;
 
         const bubbleY =
-            player.y - 80;
+            p.y - 80;
 
         ctx.fillStyle = "white";
         ctx.strokeStyle = "black";
+
         ctx.lineWidth = 2;
 
         ctx.beginPath();
@@ -352,12 +533,36 @@ function draw(){
         ctx.fillStyle = "black";
 
         ctx.fillText(
-            player.bubbleText,
-            player.x + player.size/2,
-            player.y - 53
+            p.message,
+            p.x + size/2,
+            p.y - 53
         );
     }
 }
+
+function draw(){
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    for(const id in onlinePlayers){
+
+        const p = onlinePlayers[id];
+
+        drawPlayer(
+            p,
+            id === player.id
+        );
+    }
+}
+
+// =======================
+// LOOP
+// =======================
 
 function loop(){
 
@@ -369,6 +574,19 @@ function loop(){
 }
 
 loop();
+
+// =======================
+// SAIR DO JOGO
+// =======================
+
+window.addEventListener("beforeunload",
+async ()=>{
+
+    await sb
+    .from("players")
+    .delete()
+    .eq("id", player.id);
+});
 </script>
 
 </body>
