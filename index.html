@@ -1,101 +1,126 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ChatClub</title>
 
 <style>
-    html, body {
-        margin: 0;
-        overflow: hidden;
-        width: 100%;
-        height: 100%;
-        background: white;
-        font-family: Arial, sans-serif;
-    }
+html, body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:white;
+    font-family:Arial, sans-serif;
+}
 
-    canvas {
-        display: block;
-        background: white;
-    }
+canvas{
+    display:block;
+    background:white;
+}
 
-    #chatBox {
-        position: fixed;
-        left: 10px;
-        bottom: 10px;
-        display: flex;
-        gap: 5px;
-    }
+#chatBox{
+    position:fixed;
+    left:10px;
+    bottom:10px;
+    display:flex;
+    gap:5px;
+}
 
-    #chatInput {
-        width: 220px;
-        height: 35px;
-        border: 2px solid black;
-        border-radius: 8px;
-        padding-left: 10px;
-        font-size: 16px;
-    }
+#chatInput{
+    width:230px;
+    height:40px;
+    border-radius:10px;
+    border:2px solid black;
+    padding-left:10px;
+    font-size:16px;
+}
 
-    #sendBtn {
-        height: 40px;
-        border: none;
-        border-radius: 8px;
-        padding: 0 15px;
-        font-size: 16px;
-        cursor: pointer;
-        background: #2196f3;
-        color: white;
-    }
+#sendBtn{
+    height:45px;
+    border:none;
+    border-radius:10px;
+    padding:0 15px;
+    background:#2196f3;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+}
 
-    #namePopup {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+#namePopup{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.5);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
 
-    #popupContent {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        text-align: center;
-        width: 300px;
-    }
+#popupContent{
+    width:320px;
+    background:white;
+    border-radius:20px;
+    padding:20px;
+    text-align:center;
+}
 
-    #nameInput {
-        width: 90%;
-        height: 35px;
-        font-size: 16px;
-        margin-top: 10px;
-        padding-left: 10px;
-    }
+#nameInput{
+    width:90%;
+    height:40px;
+    font-size:16px;
+    border-radius:10px;
+    border:2px solid black;
+    padding-left:10px;
+}
 
-    #startBtn {
-        margin-top: 10px;
-        width: 100%;
-        height: 40px;
-        font-size: 16px;
-        border: none;
-        border-radius: 10px;
-        background: #2196f3;
-        color: white;
-        cursor: pointer;
-    }
+#colorInput{
+    width:100%;
+    height:50px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+#startBtn{
+    width:100%;
+    height:45px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    background:#2196f3;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+}
 </style>
 </head>
 <body>
 
 <div id="namePopup">
     <div id="popupContent">
-        <h2>ChatClub</h2>
+
+        <h1>ChatClub</h1>
+
         <p>Digite seu nome</p>
 
-        <input id="nameInput" maxlength="15" placeholder="Seu nome">
+        <input
+            id="nameInput"
+            maxlength="15"
+            placeholder="Seu nome"
+        >
 
-        <button id="startBtn">Entrar</button>
+        <input
+            type="color"
+            id="colorInput"
+            value="#0000ff"
+        >
+
+        <button id="startBtn">
+            Entrar
+        </button>
+
     </div>
 </div>
 
@@ -110,7 +135,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-function resize() {
+function resize(){
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
@@ -121,23 +146,38 @@ window.addEventListener("resize", resize);
 let playerName = "Player";
 
 const player = {
-    x: 300,
-    y: 300,
-    size: 60,
-    color: "blue",
-    selected: false,
-    targetX: 300,
-    targetY: 300,
-    bubbleText: "",
-    bubbleTimer: 0
+    x:300,
+    y:300,
+
+    size:60,
+
+    color:"#0000ff",
+
+    selected:false,
+
+    targetX:300,
+    targetY:300,
+
+    speed:4,
+
+    moving:false,
+
+    bubbleText:"",
+    bubbleTimer:0,
+
+    walkFrame:0
 };
 
 document.getElementById("startBtn").onclick = async () => {
-    const input = document.getElementById("nameInput");
 
-    if(input.value.trim() !== "") {
+    const input = document.getElementById("nameInput");
+    const colorInput = document.getElementById("colorInput");
+
+    if(input.value.trim() !== ""){
         playerName = input.value.trim();
     }
+
+    player.color = colorInput.value;
 
     document.getElementById("namePopup").style.display = "none";
 
@@ -152,14 +192,14 @@ document.getElementById("startBtn").onclick = async () => {
     }
 };
 
-canvas.addEventListener("click", (e) => {
+canvas.addEventListener("click", (e)=>{
 
     const rect = canvas.getBoundingClientRect();
 
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Clique no player
+    // Selecionar cubo
     if(
         mouseX >= player.x &&
         mouseX <= player.x + player.size &&
@@ -170,10 +210,14 @@ canvas.addEventListener("click", (e) => {
         return;
     }
 
-    // Movimento
+    // Andar
     if(player.selected){
-        player.targetX = mouseX - player.size / 2;
-        player.targetY = mouseY - player.size / 2;
+
+        player.targetX = mouseX - player.size/2;
+        player.targetY = mouseY - player.size/2;
+
+        player.moving = true;
+
         player.selected = false;
     }
 });
@@ -187,10 +231,13 @@ document.getElementById("chatInput").addEventListener("keydown", (e)=>{
 });
 
 function sendMessage(){
+
     const input = document.getElementById("chatInput");
 
     if(input.value.trim() !== ""){
+
         player.bubbleText = input.value;
+
         player.bubbleTimer = 300;
 
         input.value = "";
@@ -199,9 +246,21 @@ function sendMessage(){
 
 function update(){
 
-    // Movimento suave
-    player.x += (player.targetX - player.x) * 0.08;
-    player.y += (player.targetY - player.y) * 0.08;
+    const dx = player.targetX - player.x;
+    const dy = player.targetY - player.y;
+
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if(distance > 1){
+
+        player.x += (dx / distance) * player.speed;
+        player.y += (dy / distance) * player.speed;
+
+        player.walkFrame += 0.2;
+
+    }else{
+        player.moving = false;
+    }
 
     if(player.bubbleTimer > 0){
         player.bubbleTimer--;
@@ -216,18 +275,38 @@ function draw(){
     ctx.fillStyle = "black";
     ctx.font = "20px Arial";
     ctx.textAlign = "center";
-    ctx.fillText(playerName, player.x + player.size/2, player.y - 20);
+
+    ctx.fillText(
+        playerName,
+        player.x + player.size/2,
+        player.y - 20
+    );
+
+    // Animação andando
+    let offsetY = 0;
+
+    if(player.moving){
+        offsetY = Math.sin(player.walkFrame) * 4;
+    }
 
     // Cubo
     ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    ctx.fillRect(
+        player.x,
+        player.y + offsetY,
+        player.size,
+        player.size
+    );
 
     // Seleção
     if(player.selected){
+
         ctx.strokeStyle = "black";
         ctx.lineWidth = 4;
 
         ctx.beginPath();
+
         ctx.arc(
             player.x + player.size/2,
             player.y + player.size/2,
@@ -235,30 +314,43 @@ function draw(){
             0,
             Math.PI * 2
         );
+
         ctx.stroke();
     }
 
     // Bubble
     if(player.bubbleTimer > 0){
 
-        const textWidth = ctx.measureText(player.bubbleText).width + 30;
+        ctx.font = "18px Arial";
+
+        const textWidth =
+            ctx.measureText(player.bubbleText).width + 30;
+
+        const bubbleX =
+            player.x + player.size/2 - textWidth/2;
+
+        const bubbleY =
+            player.y - 80;
 
         ctx.fillStyle = "white";
         ctx.strokeStyle = "black";
         ctx.lineWidth = 2;
 
         ctx.beginPath();
+
         ctx.roundRect(
-            player.x - (textWidth/2) + player.size/2,
-            player.y - 80,
+            bubbleX,
+            bubbleY,
             textWidth,
             40,
             10
         );
+
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = "black";
+
         ctx.fillText(
             player.bubbleText,
             player.x + player.size/2,
@@ -268,8 +360,11 @@ function draw(){
 }
 
 function loop(){
+
     update();
+
     draw();
+
     requestAnimationFrame(loop);
 }
 
@@ -277,4 +372,4 @@ loop();
 </script>
 
 </body>
-  </html>
+</html>
